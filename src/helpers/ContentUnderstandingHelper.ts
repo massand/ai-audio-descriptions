@@ -16,19 +16,42 @@ export const createContentUnderstandingAnalyzer = async (title: string, metadata
 
     const data = {
         description: "Audio Description video analyzer",
-        scenario: "videoShot",
+        baseAnalyzerId: "prebuilt-videoAnalyzer",
         config: {
-          returnDetails: true
+            "locales": ["en-US"],
+            "returnDetails": true,
+            "enableFace": false,
+            "disableFaceBlurring": false,
+            "personDirectoryId": null,
+            "segmentationMode": "auto",
+            "disableContentFiltering": false
         },
         fieldSchema: {
-          fields: {
-            Description: {
-              type: "string",
-              description: description_prompt
+            "fields": {
+                "Segments": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "SegmentId": {
+                                "type": "string"
+                            },
+                            "Description": {
+                                "type": "string",
+                                "method": "generate",
+                                "description": description_prompt
+                            },
+                            "Sentiment": {
+                                "type": "string",
+                                "method": "classify",
+                                "enum": ["Positive", "Neutral", "Negative"]
+                            }
+                        }
+                    }
+                }
             }
-          }
         }
-      };
+    };
 
     const config = {
         headers: {
@@ -63,8 +86,9 @@ export const createAnalyzeFileTask = async (analyzerId: string, videoUrl: string
     return result.data;    
 };
 
-export const getAnalyzeTaskInProgress = async (analyzerId: string, taskId: string): Promise<ContentUnderstandingResults> => {
-    const url = getContentUnderstandingBaseUrl(analyzerId, `/results/${taskId}`);
+export const getAnalyzeTaskInProgress = async (_analyzerId: string, taskId: string): Promise<ContentUnderstandingResults> => {
+    // const url = getContentUnderstandingBaseUrl(analyzerId, `/results/${taskId}`);
+    const url = `https://${aiServicesResource}.cognitiveservices.azure.com/contentunderstanding/analyzerResults/${taskId}?api-version=2025-05-01-preview`;
     const config = {
         headers: {
             "ocp-apim-subscription-key": aiServicesKey,
@@ -174,5 +198,5 @@ const getGptOutput = async (systemMessage: string, userMessage: string): Promise
 }
 
 const getContentUnderstandingBaseUrl = (analyzerId: string, operation?: string) => {
-    return `https://${aiServicesResource}.cognitiveservices.azure.com/contentunderstanding/analyzers/${analyzerId}${operation ? operation : ""}?api-version=2024-12-01-preview`
+    return `https://${aiServicesResource}.cognitiveservices.azure.com/contentunderstanding/analyzers/${analyzerId}${operation ? operation : ""}?api-version=2025-05-01-preview`
 }
