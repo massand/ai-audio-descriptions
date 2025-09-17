@@ -15,6 +15,7 @@ function App() {
     const [descriptionAvailable, setDescriptionAvailable] = React.useState(false);
     const [title, setTitle] = React.useState("");
     const [audioObjects, setAudioObjects] = React.useState<HTMLAudioElement[]>([]);
+    const [selectedVideo, setSelectedVideo] = React.useState<SavedVideoResult | undefined>(undefined);
 
     const loadAllDescribedVideos = async () => {
         let allVideos: SavedVideoResult[] = [];
@@ -61,6 +62,8 @@ function App() {
                         audioObjects={audioObjects}
                         setAudioObjects={setAudioObjects}
                         onVideoDeleted={onVideoDeleted}
+                        selectedVideo={selectedVideo}
+                        setSelectedVideo={setSelectedVideo}
                     />
                 </div>
                 <div className='half'>
@@ -71,6 +74,7 @@ function App() {
                         setDescriptionAvailable={setDescriptionAvailable}
                         title={title}
                         setAudioObjects={setAudioObjects}
+                        selectedVideo={selectedVideo}
                     />
                 </div>
 

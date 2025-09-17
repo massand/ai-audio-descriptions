@@ -5,6 +5,7 @@ import { generateAudioFiles, loadAudioFilesIntoMemory } from "./helpers/TtsHelpe
 import { uploadToBlob } from "./helpers/BlobHelper";
 import { timeToSeconds } from "./helpers/Helper";
 import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, ProgressBar } from "@fluentui/react-components";
+import { fetchAndConvertAnalyzerResults } from "./helpers/AnalyzerResultHelper";
 
 export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
     const rows = props.scenes;
@@ -15,6 +16,8 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
     const [rowsBackup, setRowsBackup] = React.useState<string>("");
     const [showAudioGenerateSpinner, setShowAudioGenerateSpinner] = React.useState(false);
     const [numberOfAudioFilesGenerated, setNumberOfAudioFilesGenerated] = React.useState(0);
+    const [showMagicSpinner, setShowMagicSpinner] = React.useState(false);
+    const [magicButtonDisabled, setMagicButtonDisabled] = React.useState(false);
     console.log(rows);
 
     const handleEdit = () => {
@@ -87,6 +90,42 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
         setShowConfirmSave(false);
     };
 
+    const handleMagic = async () => {
+        if (!props.selectedVideo?.analyzerResultJsonUrl) {
+            console.warn("No analyzer results available for this video");
+            return;
+        }
+
+        setShowMagicSpinner(true);
+        setMagicButtonDisabled(true);
+
+        try {
+            const newSegments = await fetchAndConvertAnalyzerResults(
+                props.selectedVideo.analyzerResultJsonUrl,
+                props.title
+            );
+
+            if (newSegments) {
+                props.setScenes(newSegments);
+                props.setDescriptionAvailable(false);
+                
+                // Generate audio files for the new segments
+                await generateAudioFiles(newSegments, props.title, setNumberOfAudioFilesGenerated);
+                props.setDescriptionAvailable(true);
+                await loadAudioFilesIntoMemory(props.title, newSegments, props.setAudioObjects);
+                
+                console.log("Magic conversion completed successfully");
+            } else {
+                console.error("Failed to convert analyzer results");
+            }
+        } catch (error) {
+            console.error("Error during magic conversion:", error);
+        } finally {
+            setShowMagicSpinner(false);
+            setMagicButtonDisabled(false);
+        }
+    };
+
     if (rows.length === 0) {
         return <></>;
     }
@@ -122,6 +161,22 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
                     </Dialog>
                 </div>
             )}
+            {showMagicSpinner && (
+                <div>
+                    <Dialog open={true}>
+                        <DialogSurface>
+                            <DialogBody>
+                                <DialogTitle>{"Converting analyzer results..."}</DialogTitle>
+                                <DialogContent>
+                                    <Field validationMessage="Fetching analyzer results and converting to audio descriptions..." validationState="none">
+                                        <ProgressBar />
+                                    </Field>
+                                </DialogContent>
+                            </DialogBody>
+                        </DialogSurface>
+                    </Dialog>
+                </div>
+            )}
             <div className='half'>
                 <h2>Audio Descriptions</h2>
                 {!props.descriptionAvailable ? (<>Loading...</>) : (
@@ -139,6 +194,11 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
                             <div className="ad-editor-button">
                                 {rows.length !== 0 && <Button onClick={handleConfirmSave} appearance="primary" disabledFocusable={disableSave}>Save</Button>}
                             </div>
+                            {props.selectedVideo?.analyzerResultJsonUrl && (
+                                <div className="ad-editor-button">
+                                    <Button onClick={handleMagic} appearance="primary" disabled={magicButtonDisabled}>Magic</Button>
+                                </div>
+                            )}
                         </div>
                         <>
                             <TableContainer style={{ maxHeight: "80vh" }}>

@@ -14,6 +14,8 @@ export interface VideoPlayerProps {
     audioObjects: HTMLAudioElement[];
     setAudioObjects: any;
     onVideoDeleted: () => void;
+    selectedVideo?: SavedVideoResult;
+    setSelectedVideo: any;
 }
 
 export interface DescriptionTableProps {
@@ -23,6 +25,7 @@ export interface DescriptionTableProps {
     setDescriptionAvailable: any;
     title: string;
     setAudioObjects: any;
+    selectedVideo?: SavedVideoResult;
 }
 
 export interface UploadDialogProps {

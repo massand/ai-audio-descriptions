@@ -91,6 +91,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = (props: VideoPlayerProps)
         props.setTitle(title);
         setVideoUrl(selectedVideo.videoUrl);
         setSelectedVideo(selectedVideo);
+        props.setSelectedVideo(selectedVideo);
         if (selectedVideo.audioDescriptionJsonUrl !== '') {
             setVideoUrl(selectedVideo.videoUrl);
             const jsonResult = await axios.get(selectedVideo.audioDescriptionJsonUrl);
