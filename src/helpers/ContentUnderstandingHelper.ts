@@ -1,15 +1,16 @@
 import axios from "axios";
 import { aiServicesResource, aiServicesKey, gptDeployment } from "../keys";
-import { delay, GenerateId, msToTime, timeToMs } from "./Helper";
+import { delay, GenerateId, msToTime } from "./Helper";
 import { Segment } from "../Models";
 import { Content, ContentUnderstandingResults } from "../ContentUnderstandingModels";
 
-export const createContentUnderstandingAnalyzer = async (title: string, metadata: string, narrationStyle: string) => {
-    const description_prompt = "Write an audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean.\n\n"
-        + "Use the below information about the video to enhance the descriptions:\n\n"
-        + (title ?? "") || `* Title: ${title}\n`
-        + (metadata ?? "") || `* Context: ${metadata}\n`
-        + (narrationStyle ?? "") || `Writing Style: ${narrationStyle}\n`;
+export const createContentUnderstandingAnalyzer = async (_title: string, _metadata: string, _narrationStyle: string) => {
+    // Description prompt for AI service (currently not used in schema)
+    // const description_prompt = "Write an audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean.\n\n"
+    //     + "Use the below information about the video to enhance the descriptions:\n\n"
+    //     + (title ?? "") || `* Title: ${title}\n`
+    //     + (metadata ?? "") || `* Context: ${metadata}\n`
+    //     + (narrationStyle ?? "") || `Writing Style: ${narrationStyle}\n`;
 
     const id = GenerateId();
     const url = getContentUnderstandingBaseUrl(id);
@@ -107,7 +108,7 @@ export const getAnalyzeTaskInProgress = async (_analyzerId: string, taskId: stri
     return result.data;
 }
 
-export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], title: string, metadata: string, narrationStyle: string): Promise<Segment[]> => {
+export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], _title: string, _metadata: string, _narrationStyle: string): Promise<Segment[]> => {
     // Get all segments in the video from the Content Understanding service
     // and extract which ones are silent
     const allSegmentsInTheVideo: Array<{ startTime: number, endTime: number, description: string, isSilent: boolean }> = [];
@@ -142,17 +143,17 @@ export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], t
         }
 
         segments.forEach((segment) => {
-            // Check if this specific segment overlaps with any transcript phrases
-            const segmentHasTranscript = content.transcriptPhrases.some((phrase) => {
-                // Check if phrase overlaps with segment
-                return !(phrase.endTimeMs <= segment.StartTimeMs || phrase.startTimeMs >= segment.EndTimeMs);
-            });
+            // Check if this specific segment overlaps with any transcript phrases (currently unused)
+            // const segmentHasTranscript = content.transcriptPhrases?.some((phrase) => {
+            //     // Check if phrase overlaps with segment
+            //     return !(phrase.endTimeMs <= segment.StartTimeMs || phrase.startTimeMs >= segment.EndTimeMs);
+            // }) || false;
 
             allSegmentsInTheVideo.push({
                 startTime: segment.StartTimeMs,
                 endTime: segment.EndTimeMs,
                 description: segment.SummaryDescription,
-                isSilent: true //!segmentHasTranscript
+                isSilent: true // Currently treating all segments as silent for audio description
             });
         });
     });
