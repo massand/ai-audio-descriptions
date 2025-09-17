@@ -37,6 +37,8 @@ export const getUploadedVideos = async (listOptions?: any): Promise<SavedVideoRe
                 videoUrl: '',
                 audioDescriptionJsonUrl: '',
                 detailsJsonUrl: '',
+                fieldSchemaJsonUrl: '',
+                analyzerResultJsonUrl: '',
             };
         }
         if (blob.name.endsWith('.mp4')) {
@@ -44,6 +46,12 @@ export const getUploadedVideos = async (listOptions?: any): Promise<SavedVideoRe
         }
         else if (blob.name.endsWith('details.json')) {
             blobGroups[key].detailsJsonUrl = blobContainerUrl + '/' + parts[0] + '/details.json?' + blobSasToken;
+        }
+        else if (blob.name.endsWith('fieldSchema.json')) {
+            blobGroups[key].fieldSchemaJsonUrl = blobContainerUrl + '/' + parts[0] + '/fieldSchema.json?' + blobSasToken;
+        }
+        else if (blob.name.endsWith('analyzerResult.json')) {
+            blobGroups[key].analyzerResultJsonUrl = blobContainerUrl + '/' + parts[0] + '/analyzerResult.json?' + blobSasToken;
         }
         else if (blob.name.endsWith('.json')) {
             blobGroups[key].audioDescriptionJsonUrl = blobContainerUrl + '/' + parts[0] + '/' + parts[0] + '.json?' + blobSasToken;

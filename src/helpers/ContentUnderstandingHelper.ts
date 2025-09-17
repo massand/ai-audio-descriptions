@@ -3,6 +3,7 @@ import { aiServicesResource, aiServicesKey, gptDeployment } from "../keys";
 import { delay, GenerateId, msToTime } from "./Helper";
 import { Segment } from "../Models";
 import { Content, ContentUnderstandingResults } from "../ContentUnderstandingModels";
+import { uploadToBlob } from "./BlobHelper";
 
 export const createContentUnderstandingAnalyzer = async (_title: string, _metadata: string, _narrationStyle: string) => {
     // Description prompt for AI service (currently not used in schema)
@@ -223,6 +224,41 @@ const getGptOutput = async (systemMessage: string, userMessage: string): Promise
         }
     }
 }
+
+export const storeFieldSchemaToBlob = async (analyzerId: string, blobPrefix: string): Promise<void> => {
+    try {
+        // Get analyzer details to extract fieldSchema
+        const url = getContentUnderstandingBaseUrl(analyzerId);
+        const config = {
+            headers: {
+                "ocp-apim-subscription-key": aiServicesKey,
+                "x-ms-useragent": "ai-audio-descriptions/1.0"
+            }
+        }
+        const result = await axios.get(url, config);
+        
+        // Extract fieldSchema from analyzer definition
+        const fieldSchema = {
+            fieldSchema: result.data.fieldSchema
+        };
+        
+        // Upload fieldSchema to blob storage
+        await uploadToBlob(JSON.stringify(fieldSchema, null, 2), blobPrefix, "fieldSchema.json", null);
+    } catch (error) {
+        console.error("Error storing fieldSchema to blob:", error);
+        throw error;
+    }
+};
+
+export const storeAnalyzerResultToBlob = async (analyzerResult: ContentUnderstandingResults, blobPrefix: string): Promise<void> => {
+    try {
+        // Upload the complete analyzer result to blob storage
+        await uploadToBlob(JSON.stringify(analyzerResult, null, 2), blobPrefix, "analyzerResult.json", null);
+    } catch (error) {
+        console.error("Error storing analyzer result to blob:", error);
+        throw error;
+    }
+};
 
 const getContentUnderstandingBaseUrl = (analyzerId: string, operation?: string) => {
     return `https://${aiServicesResource}.cognitiveservices.azure.com/contentunderstanding/analyzers/${analyzerId}${operation ? operation : ""}?api-version=2025-05-01-preview`

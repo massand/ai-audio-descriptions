@@ -60,6 +60,8 @@ export interface SavedVideoResult {
     videoUrl: string;
     audioDescriptionJsonUrl: string;
     detailsJsonUrl: string;
+    fieldSchemaJsonUrl: string;
+    analyzerResultJsonUrl: string;
 }
 
 export interface Segment {

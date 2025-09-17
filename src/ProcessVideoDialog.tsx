@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, ProgressBar } from "@fluentui/react-components";
 import { uploadToBlob } from "./helpers/BlobHelper";
 import { generateAudioFiles, loadAudioFilesIntoMemory } from "./helpers/TtsHelper";
-import { getAnalyzeTaskInProgress, getAudioDescriptionsFromAnalyzeResult } from "./helpers/ContentUnderstandingHelper";
+import { getAnalyzeTaskInProgress, getAudioDescriptionsFromAnalyzeResult, storeFieldSchemaToBlob, storeAnalyzerResultToBlob } from "./helpers/ContentUnderstandingHelper";
 
 export const ProcessVideoDialog = (props: ProcessVideoDialogProps) => {
     const { title, metadata, narrationStyle, taskId, analyzerId, videoUrl } = props.videoDetails;
@@ -36,6 +36,16 @@ export const ProcessVideoDialog = (props: ProcessVideoDialogProps) => {
             if (task.status?.toLowerCase() === "succeeded") {
                 setVideoProcessing(false);
                 setRewritingDescriptions(true);
+                
+                // Store fieldSchema and analyzer result to blob storage
+                try {
+                    await storeFieldSchemaToBlob(analyzerId, title);
+                    await storeAnalyzerResultToBlob(task, title);
+                } catch (error) {
+                    console.error("Error storing fieldSchema or analyzer result:", error);
+                    // Continue processing even if storage fails
+                }
+                
                 const audioDescriptions = await getAudioDescriptionsFromAnalyzeResult(task.result.contents, title, metadata, narrationStyle);
                 props.setScenes(audioDescriptions);
                 await uploadToBlob(JSON.stringify(audioDescriptions), title, title + ".json", null);
