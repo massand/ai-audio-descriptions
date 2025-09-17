@@ -5,7 +5,7 @@ import { generateAudioFiles, loadAudioFilesIntoMemory } from "./helpers/TtsHelpe
 import { uploadToBlob } from "./helpers/BlobHelper";
 import { timeToSeconds } from "./helpers/Helper";
 import { Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface, DialogTitle, Field, ProgressBar } from "@fluentui/react-components";
-import { fetchAndConvertAnalyzerResults } from "./helpers/AnalyzerResultHelper";
+import { fetchAndConvertAnalyzerResults, fetchAndConvertOriginalAnalyzerResults } from "./helpers/AnalyzerResultHelper";
 
 export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
     const rows = props.scenes;
@@ -18,6 +18,8 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
     const [numberOfAudioFilesGenerated, setNumberOfAudioFilesGenerated] = React.useState(0);
     const [showMagicSpinner, setShowMagicSpinner] = React.useState(false);
     const [magicButtonDisabled, setMagicButtonDisabled] = React.useState(false);
+    const [showOriginalSpinner, setShowOriginalSpinner] = React.useState(false);
+    const [originalButtonDisabled, setOriginalButtonDisabled] = React.useState(false);
     console.log(rows);
 
     const handleEdit = () => {
@@ -126,6 +128,42 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
         }
     };
 
+    const handleOriginal = async () => {
+        if (!props.selectedVideo?.analyzerResultJsonUrl) {
+            console.warn("No analyzer results available for this video");
+            return;
+        }
+
+        setShowOriginalSpinner(true);
+        setOriginalButtonDisabled(true);
+
+        try {
+            const originalSegments = await fetchAndConvertOriginalAnalyzerResults(
+                props.selectedVideo.analyzerResultJsonUrl,
+                props.title
+            );
+
+            if (originalSegments) {
+                props.setScenes(originalSegments);
+                props.setDescriptionAvailable(false);
+                
+                // Generate audio files for the original segments
+                await generateAudioFiles(originalSegments, props.title, setNumberOfAudioFilesGenerated);
+                props.setDescriptionAvailable(true);
+                await loadAudioFilesIntoMemory(props.title, originalSegments, props.setAudioObjects);
+                
+                console.log("Original conversion completed successfully");
+            } else {
+                console.error("Failed to convert original analyzer results");
+            }
+        } catch (error) {
+            console.error("Error during original conversion:", error);
+        } finally {
+            setShowOriginalSpinner(false);
+            setOriginalButtonDisabled(false);
+        }
+    };
+
     if (rows.length === 0) {
         return <></>;
     }
@@ -177,6 +215,22 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
                     </Dialog>
                 </div>
             )}
+            {showOriginalSpinner && (
+                <div>
+                    <Dialog open={true}>
+                        <DialogSurface>
+                            <DialogBody>
+                                <DialogTitle>{"Converting to original descriptions..."}</DialogTitle>
+                                <DialogContent>
+                                    <Field validationMessage="Fetching original analyzer results and converting to audio descriptions..." validationState="none">
+                                        <ProgressBar />
+                                    </Field>
+                                </DialogContent>
+                            </DialogBody>
+                        </DialogSurface>
+                    </Dialog>
+                </div>
+            )}
             <div className='half'>
                 <h2>Audio Descriptions</h2>
                 {!props.descriptionAvailable ? (<>Loading...</>) : (
@@ -195,9 +249,14 @@ export const DescriptionTable: React.FC<DescriptionTableProps> = (props) => {
                                 {rows.length !== 0 && <Button onClick={handleConfirmSave} appearance="primary" disabledFocusable={disableSave}>Save</Button>}
                             </div>
                             {props.selectedVideo?.analyzerResultJsonUrl && (
-                                <div className="ad-editor-button">
-                                    <Button onClick={handleMagic} appearance="primary" disabled={magicButtonDisabled}>Magic</Button>
-                                </div>
+                                <>
+                                    <div className="ad-editor-button">
+                                        <Button onClick={handleMagic} appearance="primary" disabled={magicButtonDisabled}>Magic</Button>
+                                    </div>
+                                    <div className="ad-editor-button">
+                                        <Button onClick={handleOriginal} appearance="secondary" disabled={originalButtonDisabled}>Original</Button>
+                                    </div>
+                                </>
                             )}
                         </div>
                         <>
