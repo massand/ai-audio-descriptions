@@ -23,7 +23,8 @@ export const createContentUnderstandingAnalyzer = async (title: string, metadata
             "enableFace": false,
             "disableFaceBlurring": false,
             "personDirectoryId": null,
-            "segmentationMode": "auto",
+            "segmentationMode": "custom",
+            "segmentationDefinition": "description of every new shot",
             "disableContentFiltering": false
         },
         fieldSchema: {
@@ -107,11 +108,17 @@ export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], t
     result.forEach((content: Content) => {
         // Use the segments array directly from the content
         content.segments.forEach((segment) => {
+            // Check if this specific segment overlaps with any transcript phrases
+            const segmentHasTranscript = content.transcriptPhrases.some((phrase) => {
+                // Check if phrase overlaps with segment
+                return !(phrase.endTimeMs <= segment.startTimeMs || phrase.startTimeMs >= segment.endTimeMs);
+            });
+            
             allSegmentsInTheVideo.push({
                 startTime: segment.startTimeMs,
                 endTime: segment.endTimeMs,
                 description: segment.description,
-                isSilent: content.transcriptPhrases.length === 0
+                isSilent: true //!segmentHasTranscript
             });
         });
     });
