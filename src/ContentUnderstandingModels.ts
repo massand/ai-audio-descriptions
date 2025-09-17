@@ -1,19 +1,55 @@
+export interface Word {
+  startTimeMs: number;
+  endTimeMs: number;
+  text: string;
+}
+
 export interface TranscriptPhrase {
   speaker: string;
   startTimeMs: number;
   endTimeMs: number;
   text: string;
   confidence: number;
-  words: string[];
+  words: Word[];
   locale: string;
+}
+
+export interface Segment {
+  startTimeMs: number;
+  endTimeMs: number;
+  description: string;
+  segmentId: string;
+}
+
+export interface FieldValue {
+  type: string;
+  valueString?: string;
+  valueArray?: FieldValue[];
+  valueObject?: { [key: string]: FieldValue };
 }
 
 export interface Content {
   markdown: string;
   fields: {
-    description: {
+    Segments: {
       type: string;
-      valueString: string;
+      valueArray: Array<{
+        type: string;
+        valueObject: {
+          SegmentId: {
+            type: string;
+            valueString: string;
+          };
+          Sentiment: {
+            type: string;
+            valueString: string;
+          };
+          Description: {
+            type: string;
+            valueString: string;
+          };
+        };
+      }>;
     };
   };
   kind: string;
@@ -21,8 +57,10 @@ export interface Content {
   endTimeMs: number;
   width: number;
   height: number;
+  KeyFrameTimesMs: number[];
   transcriptPhrases: TranscriptPhrase[];
-  faces: any[];
+  cameraShotTimesMs: number[];
+  segments: Segment[];
 }
 
 export interface Result {

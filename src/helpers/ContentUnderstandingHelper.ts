@@ -102,13 +102,18 @@ export const getAnalyzeTaskInProgress = async (_analyzerId: string, taskId: stri
 export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], title: string, metadata: string, narrationStyle: string) : Promise<Segment[]> => {
     // Get all segments in the video from the Content Understanding service
     // and extract which ones are silent
-    const allSegmentsInTheVideo = result.map((segment: Content) => {
-        return {
-            startTime: segment.startTimeMs,
-            endTime: segment.endTimeMs,
-            description: segment.fields.description.valueString,
-            isSilent: segment.transcriptPhrases.length === 0
-        };
+    const allSegmentsInTheVideo: Array<{startTime: number, endTime: number, description: string, isSilent: boolean}> = [];
+    
+    result.forEach((content: Content) => {
+        // Use the segments array directly from the content
+        content.segments.forEach((segment) => {
+            allSegmentsInTheVideo.push({
+                startTime: segment.startTimeMs,
+                endTime: segment.endTimeMs,
+                description: segment.description,
+                isSilent: content.transcriptPhrases.length === 0
+            });
+        });
     });
 
     // Group all silent segments together to create a list of silent intervals
