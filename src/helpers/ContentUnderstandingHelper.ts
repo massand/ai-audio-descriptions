@@ -125,8 +125,8 @@ export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], t
             else if ('valueArray' in content.fields.Segments && content.fields.Segments.valueArray) {
                 segments = content.fields.Segments.valueArray.map((item: any) => ({
                     SegmentId: item.valueObject.SegmentId.valueString,
-                    StartTimeMs: parseInt(item.valueObject.StartTimeMs?.valueString || "0"),
-                    EndTimeMs: parseInt(item.valueObject.EndTimeMs?.valueString || "0"),
+                    StartTimeMs: item.valueObject.StartTimeMs?.valueInteger || parseInt(item.valueObject.StartTimeMs?.valueString || "0"),
+                    EndTimeMs: item.valueObject.EndTimeMs?.valueInteger || parseInt(item.valueObject.EndTimeMs?.valueString || "0"),
                     SummaryDescription: item.valueObject.SummaryDescription.valueString
                 }));
             }
@@ -157,32 +157,12 @@ export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], t
         });
     });
 
-    // Group all silent segments together to create a list of silent intervals
-    // and concatenate the descriptions of the silent segments
-    const silentIntervals: Segment[] = [];
-    let silentInterval: Segment | null = null;
-    for (const segment of allSegmentsInTheVideo) {
-        if (segment.isSilent) {
-            if (!silentInterval) {
-                silentInterval = {
-                    startTime: msToTime(segment.startTime),
-                    endTime: msToTime(segment.endTime),
-                    description: segment.description
-                };
-            } else {
-                silentInterval.endTime = msToTime(segment.endTime);
-                silentInterval.description += " " + segment.description;
-            }
-        } else {
-            if (silentInterval) {
-                silentIntervals.push(silentInterval);
-                silentInterval = null;
-            }
-        }
-    }
-    if (silentInterval) {
-        silentIntervals.push(silentInterval);
-    }
+    // Convert all segments to the required format, preserving individual segments
+    const silentIntervals: Segment[] = allSegmentsInTheVideo.map(segment => ({
+        startTime: msToTime(segment.startTime),
+        endTime: msToTime(segment.endTime),
+        description: segment.description
+    }));
 
     // const wordCountPerSecond = 3;
     // const systemMessage = "Rewrite each *description* in no more than *maxWords*. Prefer clarity over length. Do not explain what things mean. Use *metadata* to improve the *description*. Do not repeat information in *previousDescription*. Output only the rewritten *description*.";
