@@ -17,7 +17,7 @@ export interface TranscriptPhrase {
 export interface Segment {
   startTimeMs: number;
   endTimeMs: number;
-  description: string;
+  summaryDescription: string;
   segmentId: string;
 }
 
@@ -31,7 +31,12 @@ export interface FieldValue {
 export interface Content {
   markdown: string;
   fields: {
-    Segments: {
+    Segments: Array<{
+      SegmentId: string;
+      StartTimeMs: number;
+      EndTimeMs: number;
+      SummaryDescription: string;
+    }> | {
       type: string;
       valueArray: Array<{
         type: string;
@@ -40,11 +45,15 @@ export interface Content {
             type: string;
             valueString: string;
           };
-          Sentiment: {
+          StartTimeMs?: {
             type: string;
             valueString: string;
           };
-          Description: {
+          EndTimeMs?: {
+            type: string;
+            valueString: string;
+          };
+          SummaryDescription: {
             type: string;
             valueString: string;
           };

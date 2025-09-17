@@ -6,10 +6,10 @@ import { Content, ContentUnderstandingResults } from "../ContentUnderstandingMod
 
 export const createContentUnderstandingAnalyzer = async (title: string, metadata: string, narrationStyle: string) => {
     const description_prompt = "Write an audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean.\n\n"
-    + "Use the below information about the video to enhance the descriptions:\n\n"
-    + (title ?? "") || `* Title: ${title}\n`
-    + (metadata ?? "") || `* Context: ${metadata}\n`
-    + (narrationStyle ?? "") || `Writing Style: ${narrationStyle}\n`;
+        + "Use the below information about the video to enhance the descriptions:\n\n"
+        + (title ?? "") || `* Title: ${title}\n`
+        + (metadata ?? "") || `* Context: ${metadata}\n`
+        + (narrationStyle ?? "") || `Writing Style: ${narrationStyle}\n`;
 
     const id = GenerateId();
     const url = getContentUnderstandingBaseUrl(id);
@@ -23,8 +23,7 @@ export const createContentUnderstandingAnalyzer = async (title: string, metadata
             "enableFace": false,
             "disableFaceBlurring": false,
             "personDirectoryId": null,
-            "segmentationMode": "custom",
-            "segmentationDefinition": "description of every new shot",
+            "segmentationMode": "auto",
             "disableContentFiltering": false
         },
         fieldSchema: {
@@ -35,20 +34,28 @@ export const createContentUnderstandingAnalyzer = async (title: string, metadata
                         "type": "object",
                         "properties": {
                             "SegmentId": {
-                                "type": "string"
-                            },
-                            "Description": {
                                 "type": "string",
                                 "method": "generate",
-                                "description": description_prompt
+                                "description": "Unique identifier for the video segment."
                             },
-                            "Sentiment": {
+                            "StartTimeMs": {
+                                "type": "integer",
+                                "method": "generate",
+                                "description": "The start time of the segment in milliseconds."
+                            },
+                            "EndTimeMs": {
+                                "type": "integer",
+                                "method": "generate",
+                                "description": "The end time of the segment in milliseconds."
+                            },
+                            "SummaryDescription": {
                                 "type": "string",
-                                "method": "classify",
-                                "enum": ["Positive", "Neutral", "Negative"]
+                                "method": "generate",
+                                "description": "The audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean."
                             }
                         }
-                    }
+                    },
+                    "method": "generate"
                 }
             }
         }
@@ -61,15 +68,15 @@ export const createContentUnderstandingAnalyzer = async (title: string, metadata
         }
     }
     const result = await axios.put(url, data, config);
-    
+
     const statusUrl = result.headers["operation-location"].toString();
     let statusResult = await axios.get(statusUrl, config);
 
-    while(statusResult.data.status?.toLowerCase() !== "succeeded") {
+    while (statusResult.data.status?.toLowerCase() !== "succeeded") {
         await new Promise(r => setTimeout(r, 1000));
         statusResult = await axios.get(statusUrl, config);
     }
-    return result.data;    
+    return result.data;
 };
 
 export const createAnalyzeFileTask = async (analyzerId: string, videoUrl: string) => {
@@ -82,9 +89,9 @@ export const createAnalyzeFileTask = async (analyzerId: string, videoUrl: string
             "ocp-apim-subscription-key": aiServicesKey,
             "x-ms-useragent": "ai-audio-descriptions/1.0"
         }
-      }
+    }
     const result = await axios.post(url, data, config);
-    return result.data;    
+    return result.data;
 };
 
 export const getAnalyzeTaskInProgress = async (_analyzerId: string, taskId: string): Promise<ContentUnderstandingResults> => {
@@ -95,29 +102,56 @@ export const getAnalyzeTaskInProgress = async (_analyzerId: string, taskId: stri
             "ocp-apim-subscription-key": aiServicesKey,
             "x-ms-useragent": "ai-audio-descriptions/1.0"
         }
-      }
+    }
     const result = await axios.get(url, config);
     return result.data;
 }
 
-export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], title: string, metadata: string, narrationStyle: string) : Promise<Segment[]> => {
+export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], title: string, metadata: string, narrationStyle: string): Promise<Segment[]> => {
     // Get all segments in the video from the Content Understanding service
     // and extract which ones are silent
-    const allSegmentsInTheVideo: Array<{startTime: number, endTime: number, description: string, isSilent: boolean}> = [];
-    
+    const allSegmentsInTheVideo: Array<{ startTime: number, endTime: number, description: string, isSilent: boolean }> = [];
+
     result.forEach((content: Content) => {
-        // Use the segments array directly from the content
-        content.segments.forEach((segment) => {
+        // Handle both old and new data structures
+        let segments: any[] = [];
+        
+        if (content.fields?.Segments) {
+            // Check if it's the new simplified structure (array)
+            if (Array.isArray(content.fields.Segments)) {
+                segments = content.fields.Segments;
+            }
+            // Check if it's the old nested structure
+            else if ('valueArray' in content.fields.Segments && content.fields.Segments.valueArray) {
+                segments = content.fields.Segments.valueArray.map((item: any) => ({
+                    SegmentId: item.valueObject.SegmentId.valueString,
+                    StartTimeMs: parseInt(item.valueObject.StartTimeMs?.valueString || "0"),
+                    EndTimeMs: parseInt(item.valueObject.EndTimeMs?.valueString || "0"),
+                    SummaryDescription: item.valueObject.SummaryDescription.valueString
+                }));
+            }
+        }
+        // Fallback to the segments array if available
+        else if (content.segments) {
+            segments = content.segments.map((segment: any) => ({
+                SegmentId: segment.segmentId,
+                StartTimeMs: segment.startTimeMs,
+                EndTimeMs: segment.endTimeMs,
+                SummaryDescription: segment.summaryDescription
+            }));
+        }
+
+        segments.forEach((segment) => {
             // Check if this specific segment overlaps with any transcript phrases
             const segmentHasTranscript = content.transcriptPhrases.some((phrase) => {
                 // Check if phrase overlaps with segment
-                return !(phrase.endTimeMs <= segment.startTimeMs || phrase.startTimeMs >= segment.endTimeMs);
+                return !(phrase.endTimeMs <= segment.StartTimeMs || phrase.startTimeMs >= segment.EndTimeMs);
             });
-            
+
             allSegmentsInTheVideo.push({
-                startTime: segment.startTimeMs,
-                endTime: segment.endTimeMs,
-                description: segment.description,
+                startTime: segment.StartTimeMs,
+                endTime: segment.EndTimeMs,
+                description: segment.SummaryDescription,
                 isSilent: true //!segmentHasTranscript
             });
         });
@@ -146,41 +180,41 @@ export const getAudioDescriptionsFromAnalyzeResult = async (result: Content[], t
             }
         }
     }
-    if(silentInterval) {
+    if (silentInterval) {
         silentIntervals.push(silentInterval);
     }
 
-    const wordCountPerSecond = 3;
-    const systemMessage = "Rewrite each *description* in no more than *maxWords*. Prefer clarity over length. Do not explain what things mean. Use *metadata* to improve the *description*. Do not repeat information in *previousDescription*. Output only the rewritten *description*.";
-    let previousDescription = "";
-    for (const segment of silentIntervals) {
-        const duration = timeToMs(segment.endTime) - timeToMs(segment.startTime);
-        const durationInSeconds = duration / 1000;
-        const wordCount = durationInSeconds * wordCountPerSecond;
-       
-        const userMessage: string = JSON.stringify({
-            metadata: {
-                title: title,
-                context: metadata,
-            writingStyle: narrationStyle
-            },
-            description: segment.description,
-            previousDescription: previousDescription,
-            maxWords: wordCount
-            });
+    // const wordCountPerSecond = 3;
+    // const systemMessage = "Rewrite each *description* in no more than *maxWords*. Prefer clarity over length. Do not explain what things mean. Use *metadata* to improve the *description*. Do not repeat information in *previousDescription*. Output only the rewritten *description*.";
+    // let previousDescription = "";
+    // for (const segment of silentIntervals) {
+    //     const duration = timeToMs(segment.endTime) - timeToMs(segment.startTime);
+    //     const durationInSeconds = duration / 1000;
+    //     const wordCount = durationInSeconds * wordCountPerSecond;
 
-        const rewriteResult = await getGptOutput(systemMessage, userMessage);
-        segment.description = rewriteResult;
-        previousDescription = rewriteResult;
-    }
+    //     const userMessage: string = JSON.stringify({
+    //         metadata: {
+    //             title: title,
+    //             context: metadata,
+    //             writingStyle: narrationStyle
+    //         },
+    //         description: segment.description,
+    //         previousDescription: previousDescription,
+    //         maxWords: wordCount
+    //     });
+
+    //     const rewriteResult = await getGptOutput(systemMessage, userMessage);
+    //     segment.description = rewriteResult;
+    //     previousDescription = rewriteResult;
+    // }
     return silentIntervals
 }
 
 const getGptOutput = async (systemMessage: string, userMessage: string): Promise<string> => {
     const data = {
         "messages": [
-            {"role": "system", "content": systemMessage},
-            {"role": "user", "content": userMessage}
+            { "role": "system", "content": systemMessage },
+            { "role": "user", "content": userMessage }
         ],
         "temperature": 0,
         "max_tokens": 4096
