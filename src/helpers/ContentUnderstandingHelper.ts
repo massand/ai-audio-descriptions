@@ -25,7 +25,8 @@ export const createContentUnderstandingAnalyzer = async (_title: string, _metada
             "enableFace": false,
             "disableFaceBlurring": false,
             "personDirectoryId": null,
-            "segmentationMode": "auto",
+            "segmentationMode": "custom",
+            "segmentationDefinition": "camera shots change or scene changes and keep segments upto maximum of 10 seconds long",
             "disableContentFiltering": false
         },
         fieldSchema: {
@@ -53,7 +54,7 @@ export const createContentUnderstandingAnalyzer = async (_title: string, _metada
                             "SummaryDescription": {
                                 "type": "string",
                                 "method": "generate",
-                                "description": "The audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean."
+                                "description": "The audio description track describing what happened across the frames in this scene. Do not repeat information from the previous description. Do not repeat information in the transcript. Do not explain what things mean. Do not explain what the people are mentioning. Do not mention spoilers ahead of time."
                             }
                         }
                     },
