@@ -34,12 +34,15 @@ export const loadAudioFilesIntoMemory = async (title: string, audioDescriptions:
     const audioObjects: HTMLAudioElement[] = [];
     // Function to preload a single .wav file
     const preloadAudio = (url:string) => {
-        return new Promise((resolve, reject) => {
+        return new Promise<HTMLAudioElement | null>((resolve) => {
             const audio = new Audio();
             audio.src = url;
             audio.preload = 'auto';
             audio.oncanplaythrough = () => resolve(audio);
-            audio.onerror = () => reject(`Failed to load audio from: ${url}`);
+            audio.onerror = () => {
+                console.warn(`Failed to load audio from: ${url} - ignoring broken file`);
+                resolve(null);
+            };
         });
     }
     const urls = audioDescriptions.map((_, i) => {
@@ -48,8 +51,10 @@ export const loadAudioFilesIntoMemory = async (title: string, audioDescriptions:
     const promises = urls.map(url => preloadAudio(url));
     try {
         const loadedAudios = await Promise.all(promises);
-        loadedAudios.forEach(audio => audioObjects.push(audio as HTMLAudioElement));
-        console.log('All audio files preloaded');
+        // Filter out null values (broken audio files) and add only successfully loaded audio
+        const validAudios = loadedAudios.filter(audio => audio !== null) as HTMLAudioElement[];
+        validAudios.forEach(audio => audioObjects.push(audio));
+        console.log(`${validAudios.length} out of ${urls.length} audio files preloaded successfully`);
         setAudioObjects(audioObjects);
       } catch (error) {
         console.error(error);
